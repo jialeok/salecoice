@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>销售助理后台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg:'#f5f7fa', surface:'#ffffff', surf2:'#f0f2f5',
+        bdr:'#e4e8ef', bdr2:'#d0d6e0',
+        acc:'#4f8ef7', acc2:'#7c5cfc',
+        grn:'#10b981', rd:'#ef4444', ylw:'#f59e0b',
+        tx:'#111827', tx2:'#4b5563', tx3:'#9ca3af',
+      },
+      fontFamily: { sans: ['"Noto Sans SC"','sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  body { font-family:'Noto Sans SC',sans-serif; overscroll-behavior:none; background:#f5f7fa; }
+  ::-webkit-scrollbar { display:none; }
+
+  /* Toggle */
+  .toggle { position:relative; width:36px; height:20px; flex-shrink:0; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; inset:0; background:#d1d5db; border-radius:10px; cursor:pointer; transition:.2s; }
+  .toggle-slider:before { content:''; position:absolute; width:14px; height:14px; border-radius:50%; background:#fff; top:3px; left:3px; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  input:checked + .toggle-slider { background:#10b981; }
+  input:checked + .toggle-slider:before { transform:translateX(16px); }
+
+  /* Tab bar — 5 tabs */
+  .tab-bar { box-shadow:0 -1px 0 #e4e8ef; }
+  .tab-btn { position:relative; }
+  .tab-btn::after { content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:0; height:2px; border-radius:2px; background:#4f8ef7; transition:width .2s; }
+  .tab-btn.tab-active::after { width:18px; }
+  .tab-active .tab-icon { color:#4f8ef7; }
+  .tab-active .tab-label { color:#4f8ef7; }
+  .tab-inactive .tab-icon { color:#9ca3af; }
+  .tab-inactive .tab-label { color:#9ca3af; }
+
+  /* Animations */
+  .sheet-open { animation:slideUp .3s cubic-bezier(.34,1.1,.64,1); }
+  @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+  @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+  .dot-pulse { animation:pulse 2s ease-in-out infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .spinner { animation:spin .7s linear infinite; }
+  @keyframes toastIn { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .toast-in { animation:toastIn .22s ease; }
+
+  .preview-code { font-family:'SF Mono','Fira Code',monospace; font-size:11px; line-height:1.7; white-space:pre-wrap; word-break:break-all; overflow-y:auto; max-height:280px; }
+  textarea,input,select { -webkit-appearance:none; appearance:none; }
+
+  /* FAQ toggle 垂直对齐 */
+  .faq-toggle-wrap { display:flex; align-items:center; }
+
+  /* 悬浮 + 按钮 */
+  #fab-add { position:fixed; bottom:80px; right:20px; z-index:100; width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg,#4f8ef7,#7c5cfc); color:#fff; font-size:24px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(79,142,247,.45); cursor:pointer; user-select:none; touch-action:none; transition:transform .15s,box-shadow .15s; }
+  #fab-add:active { transform:scale(.93); box-shadow:0 2px 8px rgba(79,142,247,.35); }
+
+  /* 导入/AI 页内 tab 选择器 */
+  .inner-tab { flex:1; py:2; border-radius:.75rem; font-size:.75rem; font-weight:700; border-width:1px; transition:all .15s; padding:.5rem; text-align:center; }
+  .inner-tab.active { border-color:rgba(79,142,247,.3); background:rgba(79,142,247,.1); color:#4f8ef7; }
+  .inner-tab.inactive { border-color:#e4e8ef; color:#9ca3af; background:#fff; }
+</style>
+</head>
+<body class="bg-bg text-tx min-h-screen flex flex-col select-none">
+
+<!-- 顶部标题栏 -->
+<header class="bg-surface border-b border-bdr sticky top-0 z-50 flex items-center gap-3 px-4 py-3 shadow-sm">
+  <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-acc to-acc2 flex items-center justify-center flex-shrink-0">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+  </div>
+  <div class="flex-1 min-w-0">
+    <div class="font-bold text-sm text-tx leading-tight" id="hd-title">FAQ 知识库</div>
+    <div class="text-xs text-tx3 truncate" id="hd-sub">管理问答对，构建精准知识体系</div>
+  </div>
+  <div class="flex items-center gap-1.5 flex-shrink-0">
+    <span class="w-2 h-2 rounded-full bg-tx3 dot-pulse" id="top-dot"></span>
+    <span class="text-xs text-tx3" id="top-status">连接中</span>
+  </div>
+</header>
+
+<!-- 内容区 -->
+<main class="flex-1 overflow-y-auto pb-24" id="main-scroll">
+
+  <!-- ① 配置 -->
+  <div class="panel hidden p-4 space-y-4" id="panel-config">
+    <div class="bg-surface rounded-2xl border border-bdr p-4 space-y-4 shadow-sm">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-bold text-tx2 uppercase tracking-wider">基础人设</span>
+        <span class="text-xs bg-acc/10 text-acc px-2 py-0.5 rounded-full font-semibold">StartSession dialog字段</span>
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-tx2">助理名称 bot_name <span class="text-tx3 font-normal">（最多20字）</span></label>
+        <input class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all" id="cfg-botname" maxlength="20" placeholder="例：小拍" oninput="updateCharCount(this,'cnt-botname',20)">
+        <div class="text-xs text-tx3 text-right font-mono" id="cnt-botname">0 / 20</div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-tx2">角色背景 system_role</label>
+        <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all resize-none" id="cfg-sysrole" rows="5" placeholder="描述助理的身份和背景…" oninput="updateSystemCharCount()"></textarea>
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-tx2">对话风格 speaking_style</label>
+        <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all resize-none" id="cfg-style" rows="3" placeholder="例：语气亲切自然，简洁不啰嗦…" oninput="updateSystemCharCount()"></textarea>
+      </div>
+      <div class="text-xs text-tx3 font-mono" id="cnt-system">system_role + speaking_style: 0 / 4000 字</div>
+      <button class="w-full bg-acc text-white rounded-xl py-3 text-sm font-bold shadow-sm active:opacity-80 transition-opacity" onclick="saveConfig()">保存配置</button>
+    </div>
+
+    <!-- API Key 折叠区 -->
+    <div class="bg-surface rounded-2xl border border-bdr shadow-sm overflow-hidden">
+      <button class="w-full flex items-center justify-between px-4 py-3.5 active:bg-surf2 transition-colors" onclick="toggleApiSection()">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-tx3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          <span class="text-sm font-semibold text-tx2">AI 生成 Key 设置</span>
+          <span id="apikey-status-inline" class="text-xs text-tx3"></span>
+        </div>
+        <svg id="api-chevron" class="w-4 h-4 text-tx3 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="api-section" class="hidden px-4 pb-4 space-y-3 border-t border-bdr">
+        <div class="pt-3 space-y-3">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-tx2">腾讯混元 API Key <span class="text-tx3 font-normal">（AI生成/提炼FAQ用）</span></label>
+            <div class="relative">
+              <input class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 pr-11 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all" id="apikey-input" type="password" placeholder="sk-…" autocomplete="off">
+              <button class="absolute right-3 top-1/2 -translate-y-1/2 text-tx3 w-7 h-7 flex items-center justify-center" onclick="toggleKeyVisibility()">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="h-px bg-bdr"></div>
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-tx2">腾讯云 SecretId <span class="text-tx3 font-normal">（录音转文字用）</span></label>
+            <input class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all" id="tencent-secret-id" type="password" placeholder="AKIDxxxxxx" autocomplete="off">
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-tx2">腾讯云 SecretKey <span class="text-tx3 font-normal">（录音转文字用）</span></label>
+            <input class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all" id="tencent-secret-key" type="password" placeholder="xxxxxx" autocomplete="off">
+          </div>
+          <div id="tencent-key-status" class="text-xs text-tx3"></div>
+        </div>
+        <button class="w-full bg-acc text-white rounded-xl py-2.5 text-sm font-bold active:opacity-80 shadow-sm" onclick="saveAPIKey()">保存 Key</button>
+        <div id="sb-table-status" class="text-xs text-tx3 text-center"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 知识库 -->
+  <div class="panel p-4 space-y-3" id="panel-faq">
+    <div class="flex items-center gap-2">
+      <div class="relative flex-1">
+        <input class="w-full bg-surface border border-bdr rounded-xl px-4 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all pl-9 shadow-sm" id="faq-search" placeholder="搜索 FAQ…" oninput="renderFAQ()">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tx3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <button class="flex-shrink-0 bg-rd/10 border border-rd/20 text-rd rounded-xl px-3 py-2.5 text-xs font-bold active:opacity-80" onclick="clearAllFAQ()">清空</button>
+    </div>
+    <div class="text-xs text-tx3 text-right" id="faq-count-label"></div>
+    <div id="faq-list" class="space-y-2"></div>
+  </div>
+
+  <!-- ③ 导入 -->
+  <div class="panel hidden p-4 space-y-4" id="panel-import">
+    <div class="bg-surface rounded-2xl border border-bdr shadow-sm p-4 space-y-4">
+      <div class="font-bold text-sm text-tx">批量导入 FAQ</div>
+      <!-- 模式 tab -->
+      <div class="flex gap-2" id="import-mode-tabs">
+        <button class="inner-tab active" data-mode="text" onclick="switchImportMode('text')">纯文本</button>
+        <button class="inner-tab inactive" data-mode="csv" onclick="switchImportMode('csv')">CSV</button>
+        <button class="inner-tab inactive" data-mode="json" onclick="switchImportMode('json')">JSON</button>
+      </div>
+      <!-- CSV 提示 -->
+      <div id="import-hint-csv" class="hidden text-xs text-tx2 leading-relaxed bg-bg rounded-xl px-3 py-2.5 border border-bdr">
+        每行一条，格式：<code class="text-acc font-mono">分类,问题,答案</code><br>内容含逗号请用英文双引号括起来
+      </div>
+      <!-- JSON 提示 -->
+      <div id="import-hint-json" class="hidden text-xs text-tx2 leading-relaxed bg-bg rounded-xl px-3 py-2.5 border border-bdr">
+        JSON 数组：<code class="text-acc font-mono text-[10px]">[{"category":"","question":"","answer":""}]</code>
+      </div>
+      <!-- 纯文本提示 -->
+      <div id="import-hint-text" class="text-xs text-tx2 leading-relaxed bg-acc/5 rounded-xl px-3 py-2.5 border border-acc/20">
+        ✨ 粘贴任意产品介绍、说明文档、话术等文本，AI 将严格基于内容提炼问答对，不会编造内容。
+      </div>
+      <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc transition-all resize-none font-mono" id="import-text" rows="9" placeholder="粘贴内容到这里…"></textarea>
+      <!-- 纯文本模式额外选项 -->
+      <div id="import-text-options" class="space-y-1">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-tx2">分类标签</label>
+          <input class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2 text-sm text-tx outline-none focus:border-acc transition-all" id="import-ai-category" placeholder="可选">
+        </div>
+        <p class="text-xs text-tx3">AI 将根据文本内容自动决定提炼数量，无需手动限制。</p>
+      </div>
+      <!-- 加载状态 -->
+      <div class="hidden items-center gap-2 text-sm text-tx2" id="import-ai-loading">
+        <div class="w-4 h-4 border-2 border-bdr2 border-t-acc rounded-full spinner"></div>
+        <span>AI 正在提炼，请稍候…</span>
+      </div>
+      <!-- 预览结果 -->
+      <div id="import-preview-result" class="hidden space-y-2">
+        <div class="h-px bg-bdr"></div>
+        <div class="text-xs font-semibold text-tx2">提炼结果预览（导入后可编辑）：</div>
+        <div id="import-preview-list" class="space-y-2 max-h-56 overflow-y-auto"></div>
+      </div>
+      <!-- 操作按钮 -->
+      <div id="import-action-btns">
+        <button id="import-main-btn" class="w-full bg-acc text-white rounded-xl py-3 text-sm font-bold active:opacity-80 shadow-sm" onclick="doImportOrExtract()">AI 提炼</button>
+      </div>
+      <button id="import-save-btn" class="hidden w-full bg-grn text-white rounded-xl py-3 text-sm font-bold active:opacity-80 shadow-sm" onclick="saveExtractedFAQs()">保存到知识库</button>
+    </div>
+  </div>
+
+  <!-- ④ AI 生成 -->
+  <div class="panel hidden p-4 space-y-4" id="panel-ai">
+    <div class="bg-surface rounded-2xl border border-bdr shadow-sm p-4 space-y-4">
+      <div class="font-bold text-sm text-tx">✨ AI 生成 FAQ</div>
+      <!-- 模式 tab -->
+      <div class="flex gap-2" id="ai-mode-tabs">
+        <button class="inner-tab active" data-mode="extract" onclick="switchAIMode('extract')">原文提炼</button>
+        <button class="inner-tab inactive" data-mode="asr" onclick="switchAIMode('asr')">录音转文字</button>
+        <button class="inner-tab inactive" data-mode="generate" onclick="switchAIMode('generate')">描述场景</button>
+      </div>
+      <!-- 录音转文字模式 -->
+      <div id="ai-mode-asr" class="hidden">
+        <div class="space-y-3">
+          <div class="text-xs text-tx2 bg-acc/5 border border-acc/20 rounded-xl px-3 py-2.5 leading-relaxed">
+            🎙️ 上传录音文件（≤5MB），自动转成文字填入原文框，再提炼FAQ。支持 mp3、m4a、wav、aac 等格式。
+          </div>
+          <!-- 文件选择 -->
+          <div>
+            <input type="file" id="asr-file-input" accept=".mp3,.m4a,.wav,.aac,.wma,.amr,.flac,.ogg" class="hidden" onchange="onASRFileSelected(this)">
+            <button class="w-full border-2 border-dashed border-bdr2 rounded-xl py-4 flex flex-col items-center gap-2 active:opacity-70 transition-opacity" onclick="document.getElementById('asr-file-input').click()">
+              <svg class="w-8 h-8 text-tx3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+              <span class="text-xs text-tx3" id="asr-file-label">点击选择录音文件</span>
+            </button>
+          </div>
+          <!-- 状态 -->
+          <div id="asr-status" class="hidden items-center gap-2 text-xs text-tx2 bg-bg border border-bdr rounded-xl px-3 py-2.5">
+            <div class="w-3.5 h-3.5 border-2 border-bdr2 border-t-acc rounded-full spinner flex-shrink-0"></div>
+            <span id="asr-status-text">准备中…</span>
+          </div>
+          <!-- 转换按钮 -->
+          <button id="asr-btn" class="hidden bg-gradient-to-r from-acc to-acc2 text-white rounded-xl py-3 px-8 text-sm font-bold active:opacity-80 shadow-sm block mx-auto" onclick="startASR()">🎙️ 开始转换</button>
+        </div>
+      </div>
+      <!-- 描述场景模式 -->
+      <div id="ai-mode-generate" class="hidden">
+        <div class="space-y-3">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-tx2">描述你的产品/业务场景</label>
+            <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all resize-none" id="ai-prompt" rows="4" placeholder="例：我是一家做企业软件SaaS的销售，主要产品是CRM系统，价格2万/年，目标客户是中小企业…"></textarea>
+          </div>
+          <div>
+            <button class="flex items-center gap-1.5 text-[11px] text-tx3 active:opacity-70 py-0.5" onclick="toggleSection('gen-sys-wrap','gen-sys-chevron')">
+              <svg id="gen-sys-chevron" class="w-2.5 h-2.5 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              <span>系统 Prompt</span>
+            </button>
+            <div id="gen-sys-wrap" class="hidden mt-1.5 space-y-1.5">
+              <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-xs text-tx2 outline-none focus:border-acc transition-all resize-none font-mono" id="ai-sys-prompt" rows="4"></textarea>
+              <button class="text-[11px] text-tx3 active:opacity-70" onclick="resetGeneratePrompt()">↩ 重置默认</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-tx2">生成数量</label>
+              <select class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc" id="ai-count">
+                <option value="5">5 条</option>
+                <option value="10" selected>10 条</option>
+                <option value="15">15 条</option>
+                <option value="20">20 条</option>
+                <option value="30">30 条</option>
+                <option value="50">50 条</option>
+                <option value="0">不限制</option>
+              </select>
+            </div>
+            <input type="hidden" id="ai-category">
+          </div>
+        </div>
+      </div>
+      <!-- 原文提炼模式 -->
+      <div id="ai-mode-extract" class="space-y-3">
+        <div class="text-xs text-tx2 bg-acc/5 border border-acc/20 rounded-xl px-3 py-2.5 leading-relaxed">
+          ✨ 粘贴产品介绍、话术、说明文档等，AI 严格基于原文提炼问答对，不编造内容。
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-tx2">原文内容</label>
+          <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all resize-none" id="ai-extract-text" rows="6" placeholder="粘贴你的产品资料、介绍文字、话术脚本等…"></textarea>
+        </div>
+        <div>
+          <button class="flex items-center gap-1.5 text-[11px] text-tx3 active:opacity-70 py-0.5" onclick="toggleSection('ext-sys-wrap','ext-sys-chevron')">
+            <svg id="ext-sys-chevron" class="w-2.5 h-2.5 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            <span>系统 Prompt</span>
+          </button>
+          <div id="ext-sys-wrap" class="hidden mt-1.5 space-y-1.5">
+            <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-xs text-tx2 outline-none focus:border-acc transition-all resize-none font-mono" id="ai-extract-sys-prompt" rows="4"></textarea>
+            <button class="text-[11px] text-tx3 active:opacity-70" onclick="resetExtractPrompt()">↩ 重置默认</button>
+          </div>
+        </div>
+        <input type="hidden" id="ai-extract-category">
+      </div>
+      <!-- 加载 -->
+      <div class="hidden items-center gap-2 text-sm text-tx2" id="ai-loading">
+        <div class="w-4 h-4 border-2 border-bdr2 border-t-acc2 rounded-full spinner"></div>
+        <span id="ai-loading-text">AI 正在生成中，请稍候…</span>
+      </div>
+      <!-- 结果预览 -->
+      <div id="ai-result-preview" class="hidden space-y-2">
+        <div class="h-px bg-bdr"></div>
+        <div class="text-xs text-tx2 font-semibold">结果预览（可直接编辑后再保存）：</div>
+        <div id="ai-preview-list" class="space-y-2 max-h-52 overflow-y-auto"></div>
+      </div>
+      <!-- 按钮 -->
+      <button class="bg-gradient-to-r from-acc to-acc2 text-white rounded-xl py-3 px-8 text-sm font-bold active:opacity-80 shadow-sm disabled:opacity-40 block mx-auto" id="ai-gen-btn" onclick="runAI()">✨ 开始生成</button>
+      <button class="hidden w-full bg-grn text-white rounded-xl py-3 text-sm font-bold active:opacity-80 shadow-sm" id="ai-save-btn" onclick="saveAIResults()">保存到知识库</button>
+    </div>
+  </div>
+
+  <!-- ⑤ 对话记录 -->
+  <div class="panel hidden p-4 space-y-3" id="panel-preview">
+    <!-- 统计卡片 -->
+    <div class="grid grid-cols-2 gap-3" id="preview-stats"></div>
+    <!-- 顶部栏 -->
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-bold text-tx">对话记录</div>
+        <div class="text-xs text-tx3 mt-0.5" id="chat-log-count">从前端语音助理获取</div>
+      </div>
+      <div class="flex gap-2">
+        <button class="text-xs text-rd border border-rd/20 bg-rd/5 rounded-lg px-2.5 py-1.5 font-semibold active:opacity-70" onclick="clearChatLog()">清空</button>
+        <button class="text-xs text-acc border border-acc/30 bg-acc/5 rounded-lg px-2.5 py-1.5 font-semibold active:opacity-70" onclick="loadChatLog()">刷新</button>
+      </div>
+    </div>
+    <!-- 说明提示 -->
+    <div class="bg-acc/5 border border-acc/15 rounded-xl px-3 py-2.5 text-xs text-tx2 leading-relaxed" id="chat-log-tip">
+      💬 前端语音对话结束后，每轮问答会自动同步到这里。发现好的 FAQ 可点击「加入知识库」。
+    </div>
+    <!-- 对话列表 -->
+    <div id="chat-log-list" class="space-y-3"></div>
+  </div>
+
+</main>
+
+<!-- 悬浮 + 按钮（知识库页） -->
+<div id="fab-add" style="display:flex;">
+  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+</div>
+
+<!-- 底部 Tab Bar -->
+<nav class="tab-bar fixed bottom-0 left-0 right-0 bg-surface border-t border-bdr z-50 grid grid-cols-4" style="padding-bottom:env(safe-area-inset-bottom,0);">
+  <button class="tab-btn tab-inactive flex flex-col items-center gap-0.5 pt-2 pb-3" data-panel="faq" onclick="switchPanel('faq')">
+    <svg class="tab-icon w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+    <span class="tab-label text-[9px] font-semibold">知识库</span>
+  </button>
+  <button class="tab-btn tab-inactive flex flex-col items-center gap-0.5 pt-2 pb-3" data-panel="ai" onclick="switchPanel('ai')">
+    <svg class="tab-icon w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    <span class="tab-label text-[9px] font-semibold">AI生成</span>
+  </button>
+  <button class="tab-btn tab-inactive flex flex-col items-center gap-0.5 pt-2 pb-3" data-panel="preview" onclick="switchPanel('preview')">
+    <svg class="tab-icon w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+    <span class="tab-label text-[9px] font-semibold">记录</span>
+  </button>
+  <button class="tab-btn tab-inactive flex flex-col items-center gap-0.5 pt-2 pb-3" data-panel="config" onclick="switchPanel('config')">
+    <svg class="tab-icon w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <span class="tab-label text-[9px] font-semibold">配置</span>
+  </button>
+</nav>
+
+<!-- Toast -->
+<div class="fixed bottom-20 left-0 right-0 z-[9999] flex flex-col items-center gap-2 pointer-events-none px-4" id="toast-container"></div>
+
+<!-- ══ Modal: 添加/编辑 FAQ ══ -->
+<div class="fixed inset-0 z-[200] flex-col justify-end" id="modal-faq" onclick="if(event.target===this)closeModal('modal-faq')" style="display:none;opacity:0;transition:opacity .2s ease;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);">
+  <div id="modal-faq-sheet" class="bg-surface rounded-t-3xl border-t border-bdr" style="transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.1,.64,1);">
+    <div class="w-10 h-1 bg-bdr2 rounded-full mx-auto mt-3 mb-4"></div>
+    <div class="px-5 pb-8 space-y-4 max-h-[82vh] overflow-y-auto">
+      <div class="font-bold text-base text-tx" id="modal-faq-title">添加 FAQ</div>
+      <input type="hidden" id="edit-faq-id">
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-tx2">分类标签</label>
+        <input class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all" id="edit-category" placeholder="例：产品介绍、价格政策…">
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-tx2">问题 Q</label>
+        <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all resize-none" id="edit-question" rows="3" placeholder="客户可能会问的问题"></textarea>
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-tx2">答案 A</label>
+        <textarea class="w-full bg-bg border border-bdr2 rounded-xl px-3 py-2.5 text-sm text-tx outline-none focus:border-acc focus:ring-2 focus:ring-acc/20 transition-all resize-none" id="edit-answer" rows="5" placeholder="你希望助理如何回答"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <button class="bg-surf2 border border-bdr text-tx2 rounded-xl py-3 text-sm font-bold active:opacity-80" onclick="closeModal('modal-faq')">取消</button>
+        <button class="bg-acc text-white rounded-xl py-3 text-sm font-bold active:opacity-80 shadow-sm" onclick="saveFAQ()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Supabase ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://cgtrlucacjrbtazidixn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNndHJsdWNhY2pyYnRhemlkaXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NDI1NDcsImV4cCI6MjA5NDExODU0N30.PX_IncuHZfsLl23OHt00XXyswycFtkmcUI3Su7BWkWY';
+const API_HEADERS = { 'Content-Type':'application/json', 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Prefer':'return=representation' };
+
+const sb = async (method, path, body) => {
+  const res = await fetch(SUPABASE_URL+'/rest/v1/'+path, { method, headers:API_HEADERS, body:body?JSON.stringify(body):undefined });
+  if (!res.ok) { const err = await res.text(); throw new Error(err); }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+};
+
+// ── 状态 ─────────────────────────────────────────────────
+let faqs = [];
+let config = { bot_name:'', system_role:'', speaking_style:'' };
+let aiGeneratedFAQs = [];
+let extractedFAQs = [];
+let importMode = 'text';
+let aiMode = 'extract';
+let currentPanel = 'faq';
+
+// ── 初始化 ───────────────────────────────────────────────
+window.onload = async () => {
+  await checkConnection();
+  await loadConfig();
+  await loadFAQs();
+  await loadAPIKeyStatus();
+  initFAB();
+  switchPanel('faq'); // 确保 tab 高亮与默认面板一致
+};
+
+async function checkConnection() {
+  try {
+    await sb('GET', 'sales_assistant_config?limit=1&select=id');
+    setStatus(true, '已连接');
+    const el = document.getElementById('sb-table-status');
+    if (el) { el.textContent = '✅ Supabase 连接正常'; el.className = 'text-xs text-grn font-medium text-center'; }
+  } catch(e) {
+    setStatus(false, '连接失败');
+    const el = document.getElementById('sb-table-status');
+    if (el) { el.textContent = '⚠️ 连接失败'; el.className = 'text-xs text-ylw font-medium text-center'; }
+  }
+}
+function setStatus(ok, msg) {
+  document.getElementById('top-dot').className = `w-2 h-2 rounded-full dot-pulse ${ok?'bg-grn':'bg-rd'}`;
+  document.getElementById('top-status').textContent = msg;
+}
+
+// ── 配置 ─────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const rows = await sb('GET', 'sales_assistant_config?id=eq.1&select=*');
+    if (rows?.[0]) {
+      config = rows[0];
+      document.getElementById('cfg-botname').value = config.bot_name || '';
+      document.getElementById('cfg-sysrole').value = config.system_role || '';
+      document.getElementById('cfg-style').value = config.speaking_style || '';
+      updateCharCount(document.getElementById('cfg-botname'), 'cnt-botname', 20);
+      updateSystemCharCount();
+    }
+  } catch(e) {}
+}
+async function saveConfig() {
+  const data = { bot_name:document.getElementById('cfg-botname').value.trim(), system_role:document.getElementById('cfg-sysrole').value.trim(), speaking_style:document.getElementById('cfg-style').value.trim(), updated_at:new Date().toISOString() };
+  try { await sb('PATCH','sales_assistant_config?id=eq.1',data); config={...config,...data}; toast('success','配置已保存'); }
+  catch(e) { toast('error','保存失败: '+e.message); }
+}
+
+// ── FAQ ──────────────────────────────────────────────────
+async function loadFAQs() {
+  try { const rows = await sb('GET','sales_knowledge_base?select=*&order=sort_order.asc,created_at.asc'); faqs=rows||[]; renderFAQ(); } catch(e) {}
+}
+
+function renderFAQ() {
+  const search = document.getElementById('faq-search').value.toLowerCase();
+  const filtered = faqs.filter(f => !search || f.question.toLowerCase().includes(search) || f.answer.toLowerCase().includes(search) || (f.category||'').toLowerCase().includes(search));
+  const list = document.getElementById('faq-list');
+  document.getElementById('faq-count-label').textContent = `共 ${faqs.length} 条，已启用 ${faqs.filter(f=>f.enabled).length} 条`;
+  if (!filtered.length) {
+    list.innerHTML = `<div class="text-center py-12 text-tx3 bg-surface border border-bdr rounded-2xl"><div class="text-4xl mb-3">📭</div><div class="text-sm text-tx2 mb-1">暂无 FAQ</div><div class="text-xs">点击右下角 + 添加</div></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(f => `
+    <div class="bg-surface border ${f.enabled?'border-bdr':'border-bdr opacity-50'} rounded-2xl p-3.5 shadow-sm">
+      <div class="flex gap-3 items-center">
+        <div class="faq-toggle-wrap flex-shrink-0">
+          <label class="toggle"><input type="checkbox" ${f.enabled?'checked':''} onchange="toggleFAQ(${f.id})"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <span class="text-[10px] font-bold bg-acc/10 text-acc px-2 py-0.5 rounded-full flex-shrink-0">${escHtml(f.category||'通用')}</span>
+            <span class="text-sm font-semibold text-tx leading-snug">${escHtml(f.question)}</span>
+          </div>
+          <div class="text-xs text-tx2 leading-relaxed">${escHtml(f.answer)}</div>
+        </div>
+        <div class="flex flex-col gap-1.5 flex-shrink-0">
+          <button class="w-8 h-8 rounded-lg bg-surf2 border border-bdr flex items-center justify-center active:opacity-70" onclick="openEditModal(${f.id})">
+            <svg class="w-3.5 h-3.5 text-tx2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <button class="w-8 h-8 rounded-lg bg-rd/10 border border-rd/20 flex items-center justify-center active:opacity-70" onclick="deleteFAQ(${f.id})">
+            <svg class="w-3.5 h-3.5 text-rd" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openAddModal() {
+  document.getElementById('modal-faq-title').textContent = '添加 FAQ';
+  document.getElementById('edit-faq-id').value = '';
+  document.getElementById('edit-category').value = '';
+  document.getElementById('edit-question').value = '';
+  document.getElementById('edit-answer').value = '';
+  openModal('modal-faq');
+}
+function openEditModal(id) {
+  const f = faqs.find(x => x.id === id);
+  if (!f) return;
+  document.getElementById('modal-faq-title').textContent = '编辑 FAQ';
+  document.getElementById('edit-faq-id').value = id;
+  document.getElementById('edit-category').value = f.category || '';
+  document.getElementById('edit-question').value = f.question || '';
+  document.getElementById('edit-answer').value = f.answer || '';
+  openModal('modal-faq');
+}
+async function saveFAQ() {
+  const id = document.getElementById('edit-faq-id').value;
+  const data = { category:document.getElementById('edit-category').value.trim()||'通用', question:document.getElementById('edit-question').value.trim(), answer:document.getElementById('edit-answer').value.trim() };
+  if (!data.question || !data.answer) { toast('error','问题和答案不能为空'); return; }
+  try {
+    if (id) { await sb('PATCH',`sales_knowledge_base?id=eq.${id}`,data); const idx=faqs.findIndex(f=>f.id==id); if(idx>=0) faqs[idx]={...faqs[idx],...data}; renderFAQ(); }
+    else { await sb('POST','sales_knowledge_base',{...data,enabled:true}); await loadFAQs(); }
+    closeModal('modal-faq');
+    toast('success', id?'FAQ 已更新':'FAQ 已添加');
+  } catch(e) { toast('error','保存失败: '+e.message); }
+}
+async function deleteFAQ(id) {
+  if (!confirm('确定删除这条 FAQ？')) return;
+  try { await sb('DELETE',`sales_knowledge_base?id=eq.${id}`); faqs=faqs.filter(f=>f.id!==id); renderFAQ(); toast('success','已删除'); }
+  catch(e) { toast('error','删除失败: '+e.message); }
+}
+async function toggleFAQ(id) {
+  const f = faqs.find(x => x.id === id);
+  if (!f) return;
+  try { await sb('PATCH',`sales_knowledge_base?id=eq.${id}`,{enabled:!f.enabled}); f.enabled=!f.enabled; renderFAQ(); }
+  catch(e) { toast('error','操作失败'); }
+}
+async function clearAllFAQ() {
+  if (!confirm('确定清空所有 FAQ？此操作不可撤销。')) return;
+  try { await sb('DELETE','sales_knowledge_base?id=gt.0'); faqs=[]; renderFAQ(); toast('success','已清空'); }
+  catch(e) { toast('error','清空失败: '+e.message); }
+}
+
+// ── 导入页 ───────────────────────────────────────────────
+function switchImportMode(mode) {
+  importMode = mode;
+  document.querySelectorAll('#import-mode-tabs .inner-tab').forEach(t => {
+    t.className = `inner-tab ${t.dataset.mode===mode?'active':'inactive'}`;
+  });
+  document.getElementById('import-hint-csv').classList.toggle('hidden', mode!=='csv');
+  document.getElementById('import-hint-json').classList.toggle('hidden', mode!=='json');
+  document.getElementById('import-hint-text').classList.toggle('hidden', mode!=='text');
+  document.getElementById('import-text-options').classList.toggle('hidden', mode!=='text');
+  document.getElementById('import-text').placeholder = mode==='text' ? '粘贴产品介绍、话术文档、说明资料等…' : '粘贴内容到这里…';
+  document.getElementById('import-main-btn').textContent = mode==='text' ? '✨ AI 提炼' : '导入';
+  // 重置结果
+  document.getElementById('import-preview-result').classList.add('hidden');
+  document.getElementById('import-save-btn').classList.add('hidden');
+  document.getElementById('import-main-btn').classList.remove('hidden');
+  extractedFAQs = [];
+}
+
+async function doImportOrExtract() {
+  if (importMode === 'text') { await doAIExtract(); return; }
+  const raw = document.getElementById('import-text').value.trim();
+  if (!raw) { toast('error','请输入内容'); return; }
+  let items = [];
+  try {
+    if (importMode==='json') { items=JSON.parse(raw); }
+    else { items=raw.split('\n').filter(l=>l.trim()).map(line=>{ const p=parseCSVLine(line); return {category:p[0]||'通用',question:p[1]||'',answer:p[2]||''}; }); }
+    items=items.filter(i=>i.question&&i.answer);
+    if (!items.length) { toast('error','没有有效的 FAQ 数据'); return; }
+    const rows=items.map(i=>({category:i.category||'通用',question:i.question,answer:i.answer,enabled:true}));
+    await sb('POST','sales_knowledge_base',rows);
+    await loadFAQs();
+    toast('success',`成功导入 ${rows.length} 条 FAQ`);
+    document.getElementById('import-text').value = '';
+  } catch(e) { toast('error','导入失败: '+e.message); }
+}
+
+async function doAIExtract() {
+  const text = document.getElementById('import-text').value.trim();
+  const category = document.getElementById('import-ai-category').value.trim() || '提炼';
+  if (!text) { toast('error','请粘贴原文内容'); return; }
+
+  let apiKey = await getAPIKey();
+  if (!apiKey) { toast('error','请先在配置页保存腾讯混元 API Key'); return; }
+
+  const loadEl = document.getElementById('import-ai-loading');
+  const mainBtn = document.getElementById('import-main-btn');
+  loadEl.classList.remove('hidden'); loadEl.classList.add('flex');
+  mainBtn.disabled = true;
+  document.getElementById('import-preview-result').classList.add('hidden');
+  document.getElementById('import-save-btn').classList.add('hidden');
+
+  try {
+    const systemMsg = `你是FAQ提炼专家。请严格基于用户提供的原文内容，提炼出尽可能完整的销售FAQ问答对，条数由原文信息量决定，不要人为限制。
+要求：
+1. 问题和答案必须完全来源于原文，不能编造或添加原文没有的内容
+2. 答案简洁，不超过80字，适合语音播报
+3. 严格按照以下JSON格式返回，不要有任何多余文字：
+[{"question":"问题1","answer":"答案1"},{"question":"问题2","answer":"答案2"}]`;
+
+    const res = await callHunyuan(apiKey, systemMsg, `请从以下原文中提炼FAQ：\n\n${text}`);
+    const parsed = extractJSONArray(res);
+    if (!parsed?.length) throw new Error('无法解析AI返回内容，请重试');
+
+    extractedFAQs = parsed.filter(i=>i.question&&i.answer).map(i=>({question:String(i.question),answer:String(i.answer),category,enabled:true}));
+    if (!extractedFAQs.length) throw new Error('提炼到0条有效FAQ，请重试');
+
+    document.getElementById('import-preview-list').innerHTML = extractedFAQs.map((f,i)=>`
+      <div class="bg-bg border border-bdr rounded-xl p-3">
+        <div class="text-xs font-semibold text-tx mb-1">Q${i+1}. ${escHtml(f.question)}</div>
+        <div class="text-xs text-tx2">${escHtml(f.answer)}</div>
+      </div>`).join('');
+    document.getElementById('import-preview-result').classList.remove('hidden');
+    document.getElementById('import-save-btn').classList.remove('hidden');
+    mainBtn.classList.add('hidden');
+    toast('success',`成功提炼 ${extractedFAQs.length} 条 FAQ`);
+  } catch(e) {
+    toast('error','提炼失败: '+e.message);
+  } finally {
+    loadEl.classList.add('hidden'); loadEl.classList.remove('flex');
+    mainBtn.disabled = false;
+  }
+}
+
+async function saveExtractedFAQs() {
+  if (!extractedFAQs.length) return;
+  try {
+    await sb('POST','sales_knowledge_base',extractedFAQs);
+    await loadFAQs();
+    toast('success',`已保存 ${extractedFAQs.length} 条 FAQ`);
+    document.getElementById('import-text').value = '';
+    document.getElementById('import-preview-result').classList.add('hidden');
+    document.getElementById('import-save-btn').classList.add('hidden');
+    document.getElementById('import-main-btn').classList.remove('hidden');
+    extractedFAQs = [];
+  } catch(e) { toast('error','保存失败: '+e.message); }
+}
+
+function parseCSVLine(line) {
+  const result=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){result.push(cur);cur='';}else{cur+=c;}}
+  result.push(cur); return result;
+}
+
+// ── AI 生成页 ────────────────────────────────────────────
+const DEFAULT_GENERATE_PROMPT = `你是一个销售FAQ生成专家。严格按照以下格式返回，不要有任何多余文字：
+[{"question":"问题1","answer":"答案1"},{"question":"问题2","answer":"答案2"}]
+根据生成数量设置，针对以下业务场景生成对应数量的销售FAQ，答案不超过80字，适合语音播报。`;
+
+const DEFAULT_EXTRACT_PROMPT = `你是FAQ提炼专家。请严格基于用户提供的原文内容，提炼出尽可能完整的销售FAQ问答对，条数由原文信息量决定，不要人为限制。
+要求：
+1. 问题和答案必须完全来源于原文，不能编造或添加原文没有的内容
+2. 答案简洁，不超过80字，适合语音播报
+3. 严格按照以下JSON格式返回，不要有任何多余文字：
+[{"question":"问题1","answer":"答案1"},{"question":"问题2","answer":"答案2"}]`;
+
+function resetGeneratePrompt() {
+  document.getElementById('ai-sys-prompt').value = DEFAULT_GENERATE_PROMPT;
+}
+function resetExtractPrompt() {
+  document.getElementById('ai-extract-sys-prompt').value = DEFAULT_EXTRACT_PROMPT;
+}
+
+function switchAIMode(mode) {
+  aiMode = mode;
+  document.querySelectorAll('#ai-mode-tabs .inner-tab').forEach(t => {
+    t.className = `inner-tab ${t.dataset.mode===mode?'active':'inactive'}`;
+  });
+  document.getElementById('ai-mode-generate').classList.toggle('hidden', mode!=='generate');
+  document.getElementById('ai-mode-extract').classList.toggle('hidden', mode!=='extract');
+  document.getElementById('ai-mode-asr').classList.toggle('hidden', mode!=='asr');
+  document.getElementById('ai-result-preview').classList.add('hidden');
+  document.getElementById('ai-save-btn').classList.add('hidden');
+  const genBtn = document.getElementById('ai-gen-btn');
+  if (mode === 'asr') {
+    genBtn.classList.add('hidden');
+  } else {
+    genBtn.classList.remove('hidden');
+    genBtn.textContent = mode==='generate' ? '✨ 开始生成' : '✨ 开始提炼';
+  }
+  aiGeneratedFAQs = [];
+  if (mode === 'generate') {
+    const el = document.getElementById('ai-sys-prompt');
+    if (!el.value) el.value = DEFAULT_GENERATE_PROMPT;
+  } else if (mode === 'extract') {
+    const el = document.getElementById('ai-extract-sys-prompt');
+    if (!el.value) el.value = DEFAULT_EXTRACT_PROMPT;
+  }
+}
+
+async function runAI() {
+  if (aiMode === 'generate') { await runAIGenerate(); }
+  else { await runAIExtract(); }
+}
+
+async function runAIGenerate() {
+  const prompt = document.getElementById('ai-prompt').value.trim();
+  const count = document.getElementById('ai-count').value;
+  const category = document.getElementById('ai-category').value.trim() || 'AI生成';
+  if (!prompt) { toast('error','请描述你的业务场景'); return; }
+
+  let apiKey = await getAPIKey();
+  if (!apiKey) { toast('error','请先在配置页保存腾讯混元 API Key'); return; }
+
+  showAILoading(true, 'AI 正在生成中，请稍候…');
+
+  try {
+    const countStr = count === '0' ? '尽可能多地' : `${count}条`;
+    const systemMsg = document.getElementById('ai-sys-prompt').value.trim() ||
+      `你是一个销售FAQ生成专家。严格按照以下格式返回，不要有任何多余文字：
+[{"question":"问题1","answer":"答案1"},{"question":"问题2","answer":"答案2"}]
+生成${countStr}针对以下业务场景的销售FAQ，答案不超过80字，适合语音播报。`;
+
+    const raw = await callHunyuan(apiKey, systemMsg, `业务场景：${prompt}`);
+    const parsed = extractJSONArray(raw);
+    if (!parsed?.length) throw new Error('无法解析AI返回内容，请重试');
+
+    aiGeneratedFAQs = parsed.filter(i=>i.question&&i.answer).map(i=>({question:String(i.question),answer:String(i.answer),category,enabled:true}));
+    if (!aiGeneratedFAQs.length) throw new Error('生成0条有效FAQ，请重试');
+
+    showAIResults(aiGeneratedFAQs);
+    toast('success',`成功生成 ${aiGeneratedFAQs.length} 条 FAQ`);
+  } catch(e) { toast('error','生成失败: '+e.message); }
+  finally { showAILoading(false); }
+}
+
+async function runAIExtract() {
+  const text = document.getElementById('ai-extract-text').value.trim();
+  const category = document.getElementById('ai-extract-category').value.trim() || '提炼';
+  if (!text) { toast('error','请粘贴原文内容'); return; }
+
+  let apiKey = await getAPIKey();
+  if (!apiKey) { toast('error','请先在配置页保存腾讯混元 API Key'); return; }
+
+  showAILoading(true, 'AI 正在提炼中，请稍候…');
+
+  try {
+    const DEFAULT_EXTRACT_PROMPT = `你是FAQ提炼专家。请严格基于用户提供的原文内容，提炼出尽可能完整的销售FAQ问答对，条数由原文信息量决定，不要人为限制。
+要求：
+1. 问题和答案必须完全来源于原文，不能编造或添加原文没有的内容
+2. 答案简洁，不超过80字，适合语音播报
+3. 严格按照以下JSON格式返回，不要有任何多余文字：
+[{"question":"问题1","answer":"答案1"},{"question":"问题2","answer":"答案2"}]`;
+    const systemMsg = document.getElementById('ai-extract-sys-prompt').value.trim() || DEFAULT_EXTRACT_PROMPT;
+
+    const raw = await callHunyuan(apiKey, systemMsg, `请从以下原文中提炼FAQ：\n\n${text}`);
+    const parsed = extractJSONArray(raw);
+    if (!parsed?.length) throw new Error('无法解析AI返回内容，请重试');
+
+    aiGeneratedFAQs = parsed.filter(i=>i.question&&i.answer).map(i=>({question:String(i.question),answer:String(i.answer),category,enabled:true}));
+    if (!aiGeneratedFAQs.length) throw new Error('提炼0条有效FAQ，请重试');
+
+    showAIResults(aiGeneratedFAQs);
+    toast('success',`成功提炼 ${aiGeneratedFAQs.length} 条 FAQ`);
+  } catch(e) { toast('error','提炼失败: '+e.message); }
+  finally { showAILoading(false); }
+}
+
+function showAILoading(on, msg) {
+  const el = document.getElementById('ai-loading');
+  if (on) { el.classList.remove('hidden'); el.classList.add('flex'); document.getElementById('ai-loading-text').textContent = msg||''; document.getElementById('ai-gen-btn').disabled = true; }
+  else { el.classList.add('hidden'); el.classList.remove('flex'); document.getElementById('ai-gen-btn').disabled = false; }
+}
+
+function showAIResults(list) {
+  document.getElementById('ai-preview-list').innerHTML = list.map((f,i)=>`
+    <div class="bg-bg border border-bdr rounded-xl p-3 space-y-2" id="ai-card-${i}">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-acc">Q${i+1}</span>
+        <button class="text-xs text-rd" onclick="removeAICard(${i})">删除</button>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] font-semibold text-tx3">问题</label>
+        <textarea class="w-full bg-surface border border-bdr2 rounded-lg px-2 py-1.5 text-xs text-tx outline-none focus:border-acc resize-none" rows="2" id="ai-q-${i}">${escHtml(f.question)}</textarea>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] font-semibold text-tx3">答案</label>
+        <textarea class="w-full bg-surface border border-bdr2 rounded-lg px-2 py-1.5 text-xs text-tx2 outline-none focus:border-grn resize-none" rows="3" id="ai-a-${i}">${escHtml(f.answer)}</textarea>
+      </div>
+    </div>`).join('');
+  document.getElementById('ai-result-preview').classList.remove('hidden');
+  document.getElementById('ai-save-btn').classList.remove('hidden');
+  document.getElementById('ai-gen-btn').classList.add('hidden');
+}
+
+function removeAICard(i) {
+  const card = document.getElementById('ai-card-'+i);
+  if (card) card.remove();
+}
+
+async function saveAIResults() {
+  // 从 DOM 读取编辑后的内容（支持用户修改过问答）
+  const cards = document.querySelectorAll('#ai-preview-list [id^="ai-card-"]');
+  const toSave = [];
+  cards.forEach(card => {
+    const idx = card.id.replace('ai-card-','');
+    const q = document.getElementById('ai-q-'+idx)?.value.trim();
+    const a = document.getElementById('ai-a-'+idx)?.value.trim();
+    const orig = aiGeneratedFAQs[parseInt(idx)];
+    if (q && a) toSave.push({ question:q, answer:a, category: orig?.category||'AI生成', enabled:true });
+  });
+  if (!toSave.length) { toast('error','没有可保存的内容'); return; }
+  try {
+    await sb('POST','sales_knowledge_base',toSave);
+    await loadFAQs();
+    toast('success',`已保存 ${toSave.length} 条 FAQ`);
+    document.getElementById('ai-result-preview').classList.add('hidden');
+    document.getElementById('ai-save-btn').classList.add('hidden');
+    document.getElementById('ai-gen-btn').classList.remove('hidden');
+    aiGeneratedFAQs = [];
+  } catch(e) { toast('error','保存失败: '+e.message); }
+}
+
+// ── AI 公共调用 ──────────────────────────────────────────
+async function getAPIKey() {
+  try { const rows = await sb('GET','sales_api_keys?id=eq.1&select=hunyuan_key'); return rows?.[0]?.hunyuan_key||''; }
+  catch(e) { return ''; }
+}
+
+async function callHunyuan(apiKey, systemMsg, userMsg) {
+  const res = await fetch('https://tokenhub.tencentmaas.com/v1/chat/completions', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+apiKey,'Content-Type':'application/json'},
+    body:JSON.stringify({ model:'deepseek-v4-flash', max_tokens:3000, messages:[{role:'system',content:systemMsg},{role:'user',content:userMsg}], stream:false })
+  });
+  if (!res.ok) { const t=await res.text(); throw new Error(`API错误 ${res.status}: ${t.slice(0,100)}`); }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content||'';
+  if (!text) throw new Error('API 返回内容为空，请检查 API Key 是否有效');
+  return text;
+}
+
+function extractJSONArray(text) {
+  try { const r=JSON.parse(text); if(Array.isArray(r)) return r; } catch(e) {}
+  const stripped = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  try { const r=JSON.parse(stripped); if(Array.isArray(r)) return r; } catch(e) {}
+  const match = text.match(/\[[\s\S]*\]/);
+  if (match) { try { const r=JSON.parse(match[0]); if(Array.isArray(r)) return r; } catch(e) {} }
+  const lastBrace = text.lastIndexOf('"}');
+  if (lastBrace!==-1) { const start=text.indexOf('['); if(start!==-1){ try{ const r=JSON.parse(text.slice(start,lastBrace+2)+']'); if(Array.isArray(r)) return r; }catch(e){} } }
+  const items=[]; const re=/\{[^{}]*"question"\s*:\s*"([^"]+)"[^{}]*"answer"\s*:\s*"([^"]+)"[^{}]*\}/g; let m;
+  while((m=re.exec(text))!==null) items.push({question:m[1],answer:m[2]});
+  return items.length ? items : null;
+}
+
+// ── 对话记录（Supabase sales_chat_log）──────────────────
+let chatLogs = []; // 本地缓存，用于编辑
+
+async function loadChatLog() {
+  const list = document.getElementById('chat-log-list');
+  const countEl = document.getElementById('chat-log-count');
+  list.innerHTML = `<div class="flex items-center justify-center py-10 gap-2 text-tx3 text-sm">
+    <div class="w-4 h-4 border-2 border-bdr2 border-t-acc rounded-full spinner"></div>加载中…</div>`;
+  try {
+    chatLogs = await sb('GET', 'sales_chat_log?select=*&order=created_at.desc&limit=200') || [];
+  } catch(e) {
+    list.innerHTML = `<div class="text-center py-10 text-rd text-sm">加载失败：${escHtml(e.message)}</div>`;
+    countEl.textContent = '加载失败';
+    return;
+  }
+  renderChatLog();
+}
+
+function renderChatLog() {
+  const list = document.getElementById('chat-log-list');
+  const countEl = document.getElementById('chat-log-count');
+  if (!chatLogs.length) {
+    list.innerHTML = `<div class="text-center py-12 bg-surface border border-bdr rounded-2xl">
+      <div class="text-4xl mb-3">💬</div>
+      <div class="text-sm text-tx2 mb-1">暂无对话记录</div>
+      <div class="text-xs text-tx3">前端语音对话结束后会自动同步到这里</div>
+    </div>`;
+    countEl.textContent = '暂无记录';
+    return;
+  }
+  countEl.textContent = `共 ${chatLogs.length} 条对话`;
+  list.innerHTML = chatLogs.map(item => {
+    const dt = new Date(item.created_at);
+    const timeStr = dt.toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+    const dateStr = dt.toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'});
+    const addedCls = item.added_to_faq
+      ? 'bg-grn/8 border-grn/20 text-grn opacity-70 cursor-default'
+      : 'bg-acc/8 border-acc/20 text-acc active:opacity-70';
+    return `<div class="bg-surface border border-bdr rounded-2xl p-4 space-y-3 shadow-sm" id="chat-item-${item.id}">
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-tx3">${dateStr} ${timeStr}</span>
+        <div class="flex gap-1.5">
+          <button class="text-xs text-acc border border-acc/30 bg-acc/5 rounded-lg px-2 py-1 font-semibold active:opacity-60"
+            onclick="startEditChat(${item.id})">编辑</button>
+          <button class="text-xs text-tx3 border border-bdr rounded-lg px-2 py-1 active:opacity-60"
+            onclick="deleteChatItem(${item.id})">删除</button>
+        </div>
+      </div>
+      <!-- 显示模式 -->
+      <div id="chat-view-${item.id}" class="space-y-2">
+        <div class="flex items-start gap-2">
+          <span class="text-xs font-bold text-acc bg-acc/10 px-1.5 py-0.5 rounded-md flex-shrink-0 mt-0.5">问</span>
+          <div class="text-sm text-tx leading-relaxed" id="chat-q-text-${item.id}">${escHtml(item.question)}</div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-xs font-bold text-grn bg-grn/10 px-1.5 py-0.5 rounded-md flex-shrink-0 mt-0.5">答</span>
+          <div class="text-sm text-tx2 leading-relaxed" id="chat-a-text-${item.id}">${escHtml(item.answer)}</div>
+        </div>
+      </div>
+      <!-- 编辑模式（默认隐藏） -->
+      <div id="chat-edit-${item.id}" class="hidden space-y-2">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-acc">问题</label>
+          <textarea id="chat-edit-q-${item.id}" rows="2"
+            class="w-full bg-bg border border-acc/30 rounded-xl px-3 py-2 text-sm text-tx outline-none focus:border-acc resize-none">${escHtml(item.question)}</textarea>
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-grn">答案</label>
+          <textarea id="chat-edit-a-${item.id}" rows="3"
+            class="w-full bg-bg border border-grn/30 rounded-xl px-3 py-2 text-sm text-tx outline-none focus:border-grn resize-none">${escHtml(item.answer)}</textarea>
+        </div>
+        <div class="flex gap-2">
+          <button class="flex-1 bg-surf2 border border-bdr text-tx2 rounded-xl py-2 text-xs font-bold active:opacity-80"
+            onclick="cancelEditChat(${item.id})">取消</button>
+          <button class="flex-1 bg-acc text-white rounded-xl py-2 text-xs font-bold active:opacity-80 shadow-sm"
+            onclick="saveEditChat(${item.id})">保存</button>
+        </div>
+      </div>
+      <button id="chat-faq-btn-${item.id}"
+        class="w-full border rounded-xl py-2.5 text-xs font-bold transition-opacity ${addedCls}"
+        onclick="addChatItemToFAQ(${item.id})" ${item.added_to_faq ? 'disabled' : ''}>
+        ${item.added_to_faq ? '✅ 已加入知识库' : '＋ 加入知识库'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+// ── 编辑对话记录 ─────────────────────────────────────────
+function startEditChat(id) {
+  document.getElementById(`chat-view-${id}`).classList.add('hidden');
+  document.getElementById(`chat-edit-${id}`).classList.remove('hidden');
+}
+function cancelEditChat(id) {
+  document.getElementById(`chat-view-${id}`).classList.remove('hidden');
+  document.getElementById(`chat-edit-${id}`).classList.add('hidden');
+}
+async function saveEditChat(id) {
+  const q = document.getElementById(`chat-edit-q-${id}`).value.trim();
+  const a = document.getElementById(`chat-edit-a-${id}`).value.trim();
+  if (!q || !a) { toast('error', '问题和答案不能为空'); return; }
+  try {
+    await sb('PATCH', `sales_chat_log?id=eq.${id}`, { question: q, answer: a });
+    // 更新本地缓存
+    const item = chatLogs.find(x => x.id === id);
+    if (item) { item.question = q; item.answer = a; }
+    // 更新显示文字
+    document.getElementById(`chat-q-text-${id}`).textContent = q;
+    document.getElementById(`chat-a-text-${id}`).textContent = a;
+    cancelEditChat(id);
+    toast('success', '已保存');
+  } catch(e) { toast('error', '保存失败: ' + e.message); }
+}
+
+// ── 加入知识库 ───────────────────────────────────────────
+async function addChatItemToFAQ(id) {
+  const item = chatLogs.find(x => x.id === id);
+  if (!item) return;
+  try {
+    await sb('POST', 'sales_knowledge_base', [{
+      category: '对话提炼',
+      question: item.question,
+      answer: item.answer,
+      enabled: true
+    }]);
+    await sb('PATCH', `sales_chat_log?id=eq.${id}`, { added_to_faq: true });
+    item.added_to_faq = true;
+    await loadFAQs();
+    toast('success', '已加入知识库 ✓');
+    const btn = document.getElementById(`chat-faq-btn-${id}`);
+    if (btn) {
+      btn.textContent = '✅ 已加入知识库';
+      btn.disabled = true;
+      btn.className = 'w-full border rounded-xl py-2.5 text-xs font-bold bg-grn/8 border-grn/20 text-grn opacity-70 cursor-default';
+    }
+  } catch(e) { toast('error', '保存失败: ' + e.message); }
+}
+
+// ── 删除 / 清空 ──────────────────────────────────────────
+async function deleteChatItem(id) {
+  if (!confirm('确定删除这条对话记录？')) return;
+  try {
+    await sb('DELETE', `sales_chat_log?id=eq.${id}`);
+    chatLogs = chatLogs.filter(x => x.id !== id);
+    renderChatLog();
+    toast('success', '已删除');
+  } catch(e) { toast('error', '删除失败: ' + e.message); }
+}
+
+async function clearChatLog() {
+  if (!confirm('确定清空所有对话记录？此操作不可撤销。')) return;
+  try {
+    await sb('DELETE', 'sales_chat_log?id=gt.0');
+    chatLogs = [];
+    renderChatLog();
+    toast('info', '对话记录已清空');
+  } catch(e) { toast('error', '清空失败: ' + e.message); }
+}
+
+// ── API Key ──────────────────────────────────────────────
+async function saveAPIKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  const sid = document.getElementById('tencent-secret-id').value.trim();
+  const skey = document.getElementById('tencent-secret-key').value.trim();
+  const patch = { updated_at: new Date().toISOString() };
+  if (key) patch.hunyuan_key = key;
+  if (sid) patch.tencent_secret_id = sid;
+  if (skey) patch.tencent_secret_key = skey;
+  if (!key && !sid && !skey) { toast('error','请至少填写一个 Key'); return; }
+  try {
+    await sb('PATCH','sales_api_keys?id=eq.1', patch);
+    if (key) updateKeyStatusUI(key);
+    if (sid || skey) updateTencentKeyStatusUI(sid, skey);
+    toast('success','Key 已保存');
+  } catch(e) { toast('error','保存失败: '+e.message); }
+}
+async function loadAPIKeyStatus() {
+  try {
+    const rows = await sb('GET','sales_api_keys?id=eq.1&select=hunyuan_key,tencent_secret_id,tencent_secret_key');
+    const row = rows?.[0] || {};
+    if (row.hunyuan_key) updateKeyStatusUI(row.hunyuan_key);
+    if (row.tencent_secret_id || row.tencent_secret_key) updateTencentKeyStatusUI(row.tencent_secret_id, row.tencent_secret_key);
+  } catch(e) {}
+}
+function updateKeyStatusUI(key) {
+  const el = document.getElementById('apikey-status-inline');
+  if (el) { el.textContent='✅ 已配置（'+key.substring(0,8)+'…）'; el.className='text-xs text-grn font-medium'; }
+}
+function updateTencentKeyStatusUI(sid, skey) {
+  const el = document.getElementById('tencent-key-status');
+  if (!el) return;
+  if (sid && skey) { el.textContent='✅ 腾讯云 Key 已配置（'+sid.substring(0,8)+'…）'; el.className='text-xs text-grn font-medium'; }
+  else { el.textContent='⚠️ SecretId / SecretKey 未完整配置'; el.className='text-xs text-ylw font-medium'; }
+}
+function toggleApiSection() {
+  const sec=document.getElementById('api-section'); const chevron=document.getElementById('api-chevron');
+  const hidden=sec.classList.toggle('hidden');
+  chevron.style.transform=hidden?'':'rotate(180deg)';
+}
+function toggleKeyVisibility() {
+  const inp=document.getElementById('apikey-input');
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+// ── 面板切换 ─────────────────────────────────────────────
+const panelMeta = {
+  config:  { title:'角色配置',   sub:'配置助理的角色身份和对话风格' },
+  faq:     { title:'FAQ 知识库', sub:'管理问答对，构建精准知识体系' },
+  import:  { title:'导入 FAQ',   sub:'CSV / JSON / 纯文本智能提炼' },
+  ai:      { title:'AI 生成',    sub:'描述场景或粘贴原文生成FAQ' },
+  preview: { title:'对话记录',   sub:'查看语音对话，优质问答一键入库' },
+};
+function switchPanel(name) {
+  currentPanel = name;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
+  const panel=document.getElementById('panel-'+name);
+  if (panel) panel.classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    const active=btn.dataset.panel===name;
+    btn.classList.toggle('tab-active',active);
+    btn.classList.toggle('tab-inactive',!active);
+  });
+  const meta=panelMeta[name];
+  if (meta) { document.getElementById('hd-title').textContent=meta.title; document.getElementById('hd-sub').textContent=meta.sub; }
+  document.getElementById('main-scroll').scrollTo({top:0});
+  if (name==='preview') { renderPreviewStats(); loadChatLog(); }
+  // FAB 只在知识库页显示
+  const fab=document.getElementById('fab-add');
+  fab.style.display = name==='faq' ? 'flex' : 'none';
+}
+
+// ── 悬浮按钮拖动（仅左右滑动，松手吸附两侧）────────────
+function initFAB() {
+  const fab = document.getElementById('fab-add');
+  let dragging = false, startTouchX = 0, startFabLeft = 0;
+
+  fab.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    startTouchX = t.clientX;
+    const rect = fab.getBoundingClientRect();
+    startFabLeft = rect.left;
+    dragging = false;
+  }, {passive: true});
+
+  fab.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = t.clientX - startTouchX;
+    if (Math.abs(dx) > 5) dragging = true;
+    if (!dragging) return;
+    const newX = startFabLeft + dx;
+    const maxX = window.innerWidth - 52 - 8;
+    fab.style.left = Math.max(8, Math.min(newX, maxX)) + 'px';
+    fab.style.right = 'auto';
+    fab.style.bottom = '80px';
+    fab.style.top = 'auto';
+  }, {passive: false});
+
+  fab.addEventListener('touchend', e => {
+    e.preventDefault(); // 阻止合成 click 事件穿透
+    if (!dragging) {
+      openAddModal();
+    } else {
+      const rect = fab.getBoundingClientRect();
+      const snapRight = (rect.left + rect.width / 2) > window.innerWidth / 2;
+      fab.style.transition = 'left .22s cubic-bezier(.34,1.1,.64,1)';
+      fab.style.left = snapRight ? (window.innerWidth - 52 - 16) + 'px' : '16px';
+      setTimeout(() => { fab.style.transition = ''; }, 260);
+    }
+    dragging = false;
+  });
+}
+
+// ── 字符计数 ─────────────────────────────────────────────
+function updateCharCount(input,countId,max) {
+  const len=input.value.length; const el=document.getElementById(countId);
+  el.textContent=`${len} / ${max}`;
+  el.className=`text-xs text-right font-mono ${len>=max?'text-rd':len>max*.9?'text-ylw':'text-tx3'}`;
+}
+function updateSystemCharCount() {
+  const sysLen=document.getElementById('cfg-sysrole').value.length+document.getElementById('cfg-style').value.length;
+  const el=document.getElementById('cnt-system');
+  el.textContent=`system_role + speaking_style: ${sysLen} / 4000 字`;
+  el.className=`text-xs font-mono ${sysLen>3500?'text-rd':sysLen>3000?'text-ylw':'text-tx3'}`;
+}
+
+// ── Modal ────────────────────────────────────────────────
+const _modalOpenTime = {};
+function openModal(id) {
+  const el = document.getElementById(id);
+  _modalOpenTime[id] = Date.now();
+  el.style.display = 'flex';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      const sheet = document.getElementById(id + '-sheet');
+      if (sheet) sheet.style.transform = 'translateY(0)';
+    });
+  });
+}
+function closeModal(id) {
+  // 打开后 350ms 内忽略关闭请求，防止合成 click 穿透立即关闭
+  if (_modalOpenTime[id] && Date.now() - _modalOpenTime[id] < 350) return;
+  const el = document.getElementById(id);
+  el.style.opacity = '0';
+  const sheet = document.getElementById(id + '-sheet');
+  if (sheet) sheet.style.transform = 'translateY(100%)';
+  setTimeout(() => { el.style.display = 'none'; }, 220);
+}
+
+// ── Toast ────────────────────────────────────────────────
+function toast(type, msg) {
+  const styles={success:'bg-white border-grn/40 text-grn shadow-lg',error:'bg-white border-rd/40 text-rd shadow-lg',info:'bg-white border-acc/40 text-acc shadow-lg'};
+  const icons={success:'✅',error:'❌',info:'ℹ️'};
+  const el=document.createElement('div');
+  el.className=`toast-in pointer-events-auto flex items-center gap-2.5 ${styles[type]||styles.info} border rounded-2xl px-4 py-3 text-sm font-medium w-full`;
+  el.innerHTML=`<span class="text-base">${icons[type]||'•'}</span><span class="text-tx flex-1">${escHtml(msg)}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+// ── 记录页统计卡片 ───────────────────────────────────────
+function renderPreviewStats() {
+  const el = document.getElementById('preview-stats');
+  if (!el) return;
+  const enabled = faqs.filter(f => f.enabled);
+  const dialogContext = [];
+  enabled.forEach(f => {
+    dialogContext.push({ role: 'user', text: f.question, timestamp: 0 });
+    dialogContext.push({ role: 'assistant', text: f.answer, timestamp: 0 });
+  });
+  const sysLen = (config.system_role || '').length + (config.speaking_style || '').length;
+  const ctxLen = JSON.stringify(dialogContext, null, 2).length;
+  const sysColor = sysLen > 3500 ? 'text-rd' : sysLen > 3000 ? 'text-ylw' : 'text-acc';
+  el.innerHTML = `
+    <div class="bg-surface border border-bdr rounded-2xl p-3 shadow-sm">
+      <div class="text-2xl font-bold font-mono text-acc">${enabled.length}</div>
+      <div class="text-xs text-tx3 mt-0.5">启用 FAQ 条数</div>
+    </div>
+    <div class="bg-surface border border-bdr rounded-2xl p-3 shadow-sm">
+      <div class="text-2xl font-bold font-mono text-acc">${dialogContext.length}</div>
+      <div class="text-xs text-tx3 mt-0.5">注入上下文条目</div>
+    </div>
+    <div class="bg-surface border border-bdr rounded-2xl p-3 shadow-sm">
+      <div class="text-2xl font-bold font-mono ${sysColor}">${sysLen}</div>
+      <div class="text-xs text-tx3 mt-0.5">System字符 / 4000</div>
+    </div>
+    <div class="bg-surface border border-bdr rounded-2xl p-3 shadow-sm">
+      <div class="text-2xl font-bold font-mono text-acc">${ctxLen}</div>
+      <div class="text-xs text-tx3 mt-0.5">context 总字符</div>
+    </div>
+  `;
+}
+
+// ── 录音转文字（腾讯云ASR）────────────────────────────────
+let asrSelectedFile = null;
+
+function onASRFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const mb = (file.size / 1024 / 1024).toFixed(2);
+  if (file.size > 5 * 1024 * 1024) {
+    toast('error', `文件 ${mb}MB 超过5MB限制，请压缩后重试`);
+    input.value = '';
+    asrSelectedFile = null;
+    document.getElementById('asr-file-label').textContent = '点击选择录音文件';
+    document.getElementById('asr-btn').classList.add('hidden');
+    return;
+  }
+  asrSelectedFile = file;
+  document.getElementById('asr-file-label').textContent = `${file.name}（${mb}MB）`;
+  document.getElementById('asr-btn').classList.remove('hidden');
+}
+
+async function startASR() {
+  if (!asrSelectedFile) { toast('error','请先选择录音文件'); return; }
+  let sid = '', skey = '';
+  try {
+    const rows = await sb('GET','sales_api_keys?id=eq.1&select=tencent_secret_id,tencent_secret_key');
+    sid = rows?.[0]?.tencent_secret_id || '';
+    skey = rows?.[0]?.tencent_secret_key || '';
+  } catch(e) {}
+  if (!sid || !skey) { toast('error','请先在配置页填写腾讯云 SecretId / SecretKey'); return; }
+
+  const btn = document.getElementById('asr-btn');
+  const statusEl = document.getElementById('asr-status');
+  const statusText = document.getElementById('asr-status-text');
+  btn.classList.add('hidden');
+  statusEl.classList.remove('hidden');
+  statusEl.classList.add('flex');
+
+  try {
+    // 读文件为base64
+    statusText.textContent = '读取文件中…';
+    const base64 = await fileToBase64(asrSelectedFile);
+    const dataLen = asrSelectedFile.size;
+
+    // 提交ASR任务
+    statusText.textContent = '提交识别任务…';
+    const taskId = await submitASRTask(sid, skey, base64, dataLen);
+
+    // 轮询结果
+    statusText.textContent = '识别中，请稍候…';
+    let elapsed = 0;
+    const result = await pollASRResult(sid, skey, taskId, (s) => {
+      elapsed += 3;
+      statusText.textContent = `识别中… 已等待 ${elapsed}s`;
+    });
+
+    // 填入原文框并切到提炼模式
+    document.getElementById('ai-extract-text').value = result;
+    switchAIMode('extract');
+    toast('success', '转换完成，已填入原文框，点击开始提炼');
+
+  } catch(e) {
+    toast('error', '转换失败：' + e.message);
+    btn.classList.remove('hidden');
+  } finally {
+    statusEl.classList.add('hidden');
+    statusEl.classList.remove('flex');
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// TC3 签名已移至 Supabase Edge Function (asr-proxy)，前端无需本地签名
+
+async function submitASRTask(sid, skey, base64Data, dataLen) {
+  const payload = {
+    EngineModelType: '16k_zh',
+    ChannelNum: 1,
+    ResTextFormat: 0,
+    SourceType: 1,
+    Data: base64Data,
+    DataLen: dataLen,
+  };
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/asr-proxy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+    body: JSON.stringify({ action: 'CreateRecTask', secretId: sid, secretKey: skey, payload }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  if (data.Response?.Error) throw new Error(data.Response.Error.Message);
+  const taskId = data.Response?.Data?.TaskId;
+  if (!taskId) throw new Error('未获取到 TaskId');
+  return taskId;
+}
+
+async function pollASRResult(sid, skey, taskId, onTick) {
+  for (let i = 0; i < 120; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    if (onTick) onTick();
+    const payload = { TaskId: taskId };
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/asr-proxy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ action: 'DescribeTaskStatus', secretId: sid, secretKey: skey, payload }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (data.Response?.Error) throw new Error(data.Response.Error.Message);
+    const task = data.Response?.Data;
+    if (!task) continue;
+    if (task.Status === 2) {
+      // 成功，返回识别文本
+      return task.Result || '';
+    }
+    if (task.Status === 3) throw new Error('识别失败：' + (task.ErrorMsg || '未知错误'));
+    // Status 0/1 继续等待
+  }
+  throw new Error('识别超时（超过6分钟），请重试');
+}
+
+function toggleSection(wrapId, chevronId) {
+  const wrap = document.getElementById(wrapId);
+  const chevron = document.getElementById(chevronId);
+  const hidden = wrap.classList.toggle('hidden');
+  chevron.style.transform = hidden ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
