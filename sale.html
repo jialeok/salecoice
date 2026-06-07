@@ -335,16 +335,16 @@ const DW = (() => {
       } else if(eid===150){ // SessionStarted
         state='listening'; setStatus('点击下方开始说话');
         $('dw-tapbtn').style.display='flex';
-      } else if(eid===350){ // TTSSentenceStart — 助理开始说一句话
-        const t=j.text||''; if(t) setSub(t);
+      } else if(eid===350){ // TTSSentenceStart — j.text 是最稳定的助理回复来源，累加
+        const t=j.text||'';
+        if(t){ setSub(t); _curAI += t; }
         state='speaking'; setStatus('助理正在说话…');
         setListening(false); setWave(true,false);
       } else if(eid===351){ flushAudio(); // TTSSentenceEnd
-      } else if(eid===359){ // TTSEnded — 本轮助理说完，保存对话
+      } else if(eid===359){ // TTSEnded — 助理说完，写库
         flushAudio(); state='listening'; setStatus('正在聆听…'); setListening(true);
-        console.log('[DW] TTSEnded, _curUser=', _curUser, '_curAI=', _curAI);
-        if(_curUser && _curAI){
-          const q=_curUser, a=_curAI;
+        if(_curUser){
+          const q=_curUser, a=_curAI||null;
           _curUser=''; _curAI='';
           fetch(SB_URL+'/rest/v1/sales_chat_log', {
             method:'POST',
@@ -356,26 +356,23 @@ const DW = (() => {
             },
             body:JSON.stringify({question:q, answer:a, added_to_faq:false})
           }).then(r=>{
-            if(!r.ok) r.text().then(t=>console.warn('[DW] chat_log write failed:', r.status, t));
-            else console.log('[DW] chat_log saved OK, q=', q.substring(0,30));
-          }).catch(e=>console.warn('[DW] chat_log fetch error:', e));
-        } else {
-          console.warn('[DW] skip save: curUser='+_curUser+' curAI='+_curAI);
+            if(!r.ok) r.text().then(t=>console.warn('[DW] write failed:', r.status, t));
+            else console.log('[DW] saved OK q='+q.substring(0,20));
+          }).catch(e=>console.warn('[DW] fetch error:', e));
         }
-      } else if(eid===450){ stopAudio(); // ASRInfo — 检测到用户开始说话，打断播放
-      } else if(eid===451){ // ASRResponse — 流式识别结果
-        const results = j.results||[];
-        // 取所有结果文字（不管是否interim），最后一次451的完整文字就是用户说的话
-        const t = results.map(r=>r.text).join('');
-        if(t){ setStatus('我听到：'+t); setSub(t); _curUser=t; }
-        console.log('[DW] ASRResponse, is_interim=', results.map(r=>r.is_interim), 't=', t);
-      } else if(eid===459){ // ASREnded — 用户说话结束确认
-        console.log('[DW] ASREnded, _curUser=', _curUser);
-      } else if(eid===550){ // ChatResponse — 助理回复的文字内容（逐段流式）
-        const t=j.content||'';
-        if(t){ _curAI += t; console.log('[DW] ChatResponse chunk:', t.substring(0,20)); }
-      } else if(eid===559){ // ChatEnded — 助理文字回复结束
-        console.log('[DW] ChatEnded, _curAI=', _curAI.substring(0,50));
+      } else if(eid===450){ stopAudio(); // ASRInfo
+      } else if(eid===451){ // ASRResponse — 只取 is_interim===false 的最终结果
+        const t=(j.results||[]).map(r=>r.text).join('');
+        if(t){ setStatus('我听到：'+t); setSub(t); }
+        const finals=(j.results||[]).filter(r=>!r.is_interim);
+        if(finals.length){ _curUser=finals.map(r=>r.text).join(''); }
+      } else if(eid===459){ // ASREnded — 兜底：若451没拿到final，用当前文字
+        if(!_curUser){
+          const sub=$('dw-sub').textContent||'';
+          if(sub && !sub.includes('等待') && !sub.includes('助理')) _curUser=sub;
+        }
+      } else if(eid===550){ // ChatResponse — 双保险累加AI回复
+        if(j.content) _curAI += j.content;
       } else if(eid===153||eid===599){ setStatus('连接出错，请重试'); }
     }
     if(msgType===11&&payload) chunks.push(payload);
