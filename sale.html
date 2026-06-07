@@ -335,13 +335,14 @@ const DW = (() => {
       } else if(eid===150){ // SessionStarted
         state='listening'; setStatus('点击下方开始说话');
         $('dw-tapbtn').style.display='flex';
-      } else if(eid===350){ // TTSSentenceStart — 助理回答文字，累加到 _curAI
-        const t=j.text||''; if(t){ setSub(t); _curAI += (_curAI ? ' ' : '') + t; }
+      } else if(eid===350){ // TTSSentenceStart — 助理开始说一句话
+        const t=j.text||''; if(t) setSub(t);
         state='speaking'; setStatus('助理正在说话…');
         setListening(false); setWave(true,false);
-      } else if(eid===351){ flushAudio();
-      } else if(eid===359){ flushAudio(); state='listening'; setStatus('正在聊听…'); setListening(true);
-        // 保存本轮对话到 Supabase sales_chat_log
+      } else if(eid===351){ flushAudio(); // TTSSentenceEnd
+      } else if(eid===359){ // TTSEnded — 本轮助理说完，保存对话
+        flushAudio(); state='listening'; setStatus('正在聆听…'); setListening(true);
+        console.log('[DW] TTSEnded, _curUser=', _curUser, '_curAI=', _curAI);
         if(_curUser && _curAI){
           const q=_curUser, a=_curAI;
           _curUser=''; _curAI='';
@@ -356,27 +357,25 @@ const DW = (() => {
             body:JSON.stringify({question:q, answer:a, added_to_faq:false})
           }).then(r=>{
             if(!r.ok) r.text().then(t=>console.warn('[DW] chat_log write failed:', r.status, t));
-            else console.log('[DW] chat_log saved:', q.substring(0,20));
+            else console.log('[DW] chat_log saved OK, q=', q.substring(0,30));
           }).catch(e=>console.warn('[DW] chat_log fetch error:', e));
+        } else {
+          console.warn('[DW] skip save: curUser='+_curUser+' curAI='+_curAI);
         }
-      } else if(eid===450){ stopAudio();
-      } else if(eid===451){ // ASRResponse — 只取最终结果(is_interim===false)
-        const finals=(j.results||[]).filter(r=>r.is_interim===false);
-        const interim=(j.results||[]).filter(r=>r.is_interim===true);
-        if(finals.length){
-          const t=finals.map(r=>r.text).join('');
-          if(t){ setStatus('我听到：'+t); setSub(t); _curUser=t; }
-        } else if(interim.length){
-          // 流式中间结果，仅更新显示，不赋值 _curUser
-          const t=interim.map(r=>r.text).join('');
-          if(t){ setStatus('我听到：'+t); setSub(t); }
-        }
-      } else if(eid===459){ // ASREnded — 用户说话结束，确保 _curUser 有值
-        // 如果前面 is_interim=false 没触发，用当前 sub 文字兜底
-        if(!_curUser){
-          const sub=$('dw-sub').textContent||'';
-          if(sub && sub!=='等待对话开始…') _curUser=sub.replace(/^我听到：/,'').trim();
-        }
+      } else if(eid===450){ stopAudio(); // ASRInfo — 检测到用户开始说话，打断播放
+      } else if(eid===451){ // ASRResponse — 流式识别结果
+        const results = j.results||[];
+        // 取所有结果文字（不管是否interim），最后一次451的完整文字就是用户说的话
+        const t = results.map(r=>r.text).join('');
+        if(t){ setStatus('我听到：'+t); setSub(t); _curUser=t; }
+        console.log('[DW] ASRResponse, is_interim=', results.map(r=>r.is_interim), 't=', t);
+      } else if(eid===459){ // ASREnded — 用户说话结束确认
+        console.log('[DW] ASREnded, _curUser=', _curUser);
+      } else if(eid===550){ // ChatResponse — 助理回复的文字内容（逐段流式）
+        const t=j.content||'';
+        if(t){ _curAI += t; console.log('[DW] ChatResponse chunk:', t.substring(0,20)); }
+      } else if(eid===559){ // ChatEnded — 助理文字回复结束
+        console.log('[DW] ChatEnded, _curAI=', _curAI.substring(0,50));
       } else if(eid===153||eid===599){ setStatus('连接出错，请重试'); }
     }
     if(msgType===11&&payload) chunks.push(payload);
