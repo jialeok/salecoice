@@ -354,11 +354,29 @@ const DW = (() => {
               'Prefer':'return=minimal'
             },
             body:JSON.stringify({question:q, answer:a, added_to_faq:false})
-          }).catch(()=>{});
+          }).then(r=>{
+            if(!r.ok) r.text().then(t=>console.warn('[DW] chat_log write failed:', r.status, t));
+            else console.log('[DW] chat_log saved:', q.substring(0,20));
+          }).catch(e=>console.warn('[DW] chat_log fetch error:', e));
         }
       } else if(eid===450){ stopAudio();
-      } else if(eid===451){ // ASR 识别用户说话 — 赋值到 _curUser
-        const t=(j.results||[]).map(r=>r.text).join(''); if(t){setStatus('我听到：'+t);setSub(t); _curUser=t;}
+      } else if(eid===451){ // ASRResponse — 只取最终结果(is_interim===false)
+        const finals=(j.results||[]).filter(r=>r.is_interim===false);
+        const interim=(j.results||[]).filter(r=>r.is_interim===true);
+        if(finals.length){
+          const t=finals.map(r=>r.text).join('');
+          if(t){ setStatus('我听到：'+t); setSub(t); _curUser=t; }
+        } else if(interim.length){
+          // 流式中间结果，仅更新显示，不赋值 _curUser
+          const t=interim.map(r=>r.text).join('');
+          if(t){ setStatus('我听到：'+t); setSub(t); }
+        }
+      } else if(eid===459){ // ASREnded — 用户说话结束，确保 _curUser 有值
+        // 如果前面 is_interim=false 没触发，用当前 sub 文字兜底
+        if(!_curUser){
+          const sub=$('dw-sub').textContent||'';
+          if(sub && sub!=='等待对话开始…') _curUser=sub.replace(/^我听到：/,'').trim();
+        }
       } else if(eid===153||eid===599){ setStatus('连接出错，请重试'); }
     }
     if(msgType===11&&payload) chunks.push(payload);
