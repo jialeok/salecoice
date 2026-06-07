@@ -341,14 +341,19 @@ const DW = (() => {
         setListening(false); setWave(true,false);
       } else if(eid===351){ flushAudio();
       } else if(eid===359){ flushAudio(); state='listening'; setStatus('正在聆听…'); setListening(true);
-        // 保存本轮对话到 localStorage
+        // 保存本轮对话到 Supabase sales_chat_log
         if(_curUser && _curAI){
           try{
-            const key='dw_chat_log';
-            const log=JSON.parse(localStorage.getItem(key)||'[]');
-            log.push({question:_curUser,answer:_curAI,ts:Date.now()});
-            if(log.length>200)log.splice(0,log.length-200);
-            localStorage.setItem(key,JSON.stringify(log));
+            fetch(SB_URL+'/rest/v1/sales_chat_log', {
+              method:'POST',
+              headers:{
+                'Content-Type':'application/json',
+                'apikey':SB_KEY,
+                'Authorization':'Bearer '+SB_KEY,
+                'Prefer':'return=minimal'
+              },
+              body:JSON.stringify({question:_curUser, answer:_curAI, added_to_faq:false})
+            }).catch(()=>{});
           }catch(_e){}
           _curUser=''; _curAI='';
         }
