@@ -335,30 +335,30 @@ const DW = (() => {
       } else if(eid===150){ // SessionStarted
         state='listening'; setStatus('点击下方开始说话');
         $('dw-tapbtn').style.display='flex';
-      } else if(eid===350){ // TTSSentenceStart
-        const t=j.text||''; if(t)setSub(t);
+      } else if(eid===350){ // TTSSentenceStart — 助理回答文字，累加到 _curAI
+        const t=j.text||''; if(t){ setSub(t); _curAI += (_curAI ? ' ' : '') + t; }
         state='speaking'; setStatus('助理正在说话…');
         setListening(false); setWave(true,false);
       } else if(eid===351){ flushAudio();
-      } else if(eid===359){ flushAudio(); state='listening'; setStatus('正在聆听…'); setListening(true);
+      } else if(eid===359){ flushAudio(); state='listening'; setStatus('正在聊听…'); setListening(true);
         // 保存本轮对话到 Supabase sales_chat_log
         if(_curUser && _curAI){
-          try{
-            fetch(SB_URL+'/rest/v1/sales_chat_log', {
-              method:'POST',
-              headers:{
-                'Content-Type':'application/json',
-                'apikey':SB_KEY,
-                'Authorization':'Bearer '+SB_KEY,
-                'Prefer':'return=minimal'
-              },
-              body:JSON.stringify({question:_curUser, answer:_curAI, added_to_faq:false})
-            }).catch(()=>{});
-          }catch(_e){}
+          const q=_curUser, a=_curAI;
           _curUser=''; _curAI='';
+          fetch(SB_URL+'/rest/v1/sales_chat_log', {
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              'apikey':SB_KEY,
+              'Authorization':'Bearer '+SB_KEY,
+              'Prefer':'return=minimal'
+            },
+            body:JSON.stringify({question:q, answer:a, added_to_faq:false})
+          }).catch(()=>{});
         }
       } else if(eid===450){ stopAudio();
-      } else if(eid===451){ const t=(j.results||[]).map(r=>r.text).join(''); if(t){setStatus('我听到：'+t);setSub(t);}
+      } else if(eid===451){ // ASR 识别用户说话 — 赋值到 _curUser
+        const t=(j.results||[]).map(r=>r.text).join(''); if(t){setStatus('我听到：'+t);setSub(t); _curUser=t;}
       } else if(eid===153||eid===599){ setStatus('连接出错，请重试'); }
     }
     if(msgType===11&&payload) chunks.push(payload);
